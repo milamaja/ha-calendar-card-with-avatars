@@ -1,0 +1,14 @@
+{
+  "domain": "calendar_card_with_avatars",
+  "name": "Calendar Card with Avatars",
+  "codeowners": ["@milamaja"],
+  "config_flow": true,
+  "dependencies": ["frontend", "http", "lovelace"],
+  "documentation": "https://github.com/milamaja/ha-calendar-card-with-avatars",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/milamaja/ha-calendar-card-with-avatars/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "1.0.0"
+}

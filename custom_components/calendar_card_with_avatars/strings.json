@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Calendar Card with Avatars",
+        "description": "Adds the Calendar Card with Avatars to your dashboards: a seven-day agenda with people's pictures in front of their events. After this, edit a dashboard, choose Add card and pick Calendar Card with Avatars."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Calendar Card with Avatars is already set up."
+    },
+    "create_entry": {
+      "default": "Done. Reload this page once (press F5, pull down on a phone or tablet, or restart a kiosk app) so your browser loads the card. Then edit a dashboard, choose Add card and pick Calendar Card with Avatars."
+    }
+  }
+}

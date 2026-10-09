@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Calendar Card with Avatars",
+        "description": "Voegt de Calendar Card with Avatars toe aan je dashboards: een agenda van zeven dagen met foto's van personen voor hun afspraken. Bewerk daarna een dashboard, kies Kaart toevoegen en kies Calendar Card with Avatars."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Calendar Card with Avatars is al ingesteld."
+    },
+    "create_entry": {
+      "default": "Klaar. Laad deze pagina één keer opnieuw (druk op F5, trek omlaag op een telefoon of tablet, of herstart een kiosk-app) zodat je browser de kaart laadt. Bewerk daarna een dashboard, kies Kaart toevoegen en kies Calendar Card with Avatars."
+    }
+  }
+}
