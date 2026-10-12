@@ -13,10 +13,11 @@
  * Everything is set up in the card editor.
  */
 
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 const CARD_TYPE = "calendar-card-with-avatars";
 const EDITOR_TYPE = "calendar-card-with-avatars-editor";
 const DEFAULT_DAYS = 7;
+const DEFAULT_ROWS = 6;
 const REFRESH_MS = 5 * 60 * 1000;
 const WASTE_CACHE_KEY = "calendar-card-with-avatars:waste";
 
@@ -43,6 +44,15 @@ const TEXT = {
     text: "Event title contains",
     rule_entity: "Picture of entity",
     rule_picture: "Or this picture",
+    height_section: "Height",
+    rows: "Height (rows)",
+    rows_helper: "Used instead of the height in the Layout tab, so the heights below can change it.",
+    heights: "Other heights",
+    heights_helper: "The first one whose condition is met is used; otherwise the height above.",
+    height_rows: "Height (rows)",
+    height_entity: "When entity",
+    height_state: "has state",
+    height_state_not: "or does not have state",
   },
   nl: {
     name: "Calendar Card with Avatars",
@@ -66,6 +76,15 @@ const TEXT = {
     text: "Titel bevat",
     rule_entity: "Afbeelding van entiteit",
     rule_picture: "Of deze afbeelding",
+    height_section: "Hoogte",
+    rows: "Hoogte (rijen)",
+    rows_helper: "Wordt gebruikt in plaats van de hoogte in het tabblad Indeling, zodat de hoogtes hieronder die kunnen wijzigen.",
+    heights: "Andere hoogtes",
+    heights_helper: "De eerste waarvan de voorwaarde klopt wordt gebruikt; anders de hoogte hierboven.",
+    height_rows: "Hoogte (rijen)",
+    height_entity: "Als entiteit",
+    height_state: "de status heeft",
+    height_state_not: "of niet de status heeft",
   },
 };
 
@@ -459,6 +478,55 @@ const calendarsOf = (config) =>
     .map((item) => (typeof item === "string" ? { entity: item } : item))
     .filter((item) => item && item.entity);
 
+// ---------------------------------------------------------------- height
+
+// Conditions in the format of Home Assistant's card visibility conditions,
+// plus a short form on the height itself: { entity, state, state_not }.
+const asList = (value) => (Array.isArray(value) ? value : value === undefined ? [] : [value]).map(String);
+
+const conditionMet = (cond, hass) => {
+  if (!cond || typeof cond !== "object") return false;
+  const kind = cond.condition || (cond.entity ? "state" : undefined);
+  const stateObj = cond.entity ? hass.states[cond.entity] : undefined;
+  switch (kind) {
+    case "state": {
+      if (!stateObj) return false;
+      if (cond.state !== undefined && !asList(cond.state).includes(stateObj.state)) return false;
+      if (cond.state_not !== undefined && asList(cond.state_not).includes(stateObj.state)) return false;
+      return true;
+    }
+    case "numeric_state": {
+      const value = stateObj ? Number(stateObj.state) : NaN;
+      if (isNaN(value)) return false;
+      const bound = (b) => (typeof b === "string" && hass.states[b] ? Number(hass.states[b].state) : Number(b));
+      if (cond.above !== undefined && !(value > bound(cond.above))) return false;
+      if (cond.below !== undefined && !(value < bound(cond.below))) return false;
+      return true;
+    }
+    case "screen":
+      return Boolean(cond.media_query) && window.matchMedia(cond.media_query).matches;
+    case "user":
+      return Boolean(hass.user) && asList(cond.users).includes(hass.user.id);
+    case "and":
+      return (cond.conditions || []).every((c) => conditionMet(c, hass));
+    case "or":
+      return (cond.conditions || []).some((c) => conditionMet(c, hass));
+    case "not":
+      return !(cond.conditions || []).some((c) => conditionMet(c, hass));
+    default:
+      return false;
+  }
+};
+
+// A height applies when its short-form entity condition (if any) and all its
+// conditions are met. The first height that applies wins.
+const heightApplies = (height, hass) => {
+  if (!height || typeof height !== "object") return false;
+  const checks = [...(height.entity ? [{ condition: "state", entity: height.entity, state: height.state, state_not: height.state_not }] : []),
+    ...(height.conditions || [])];
+  return checks.length > 0 && checks.every((c) => conditionMet(c, hass));
+};
+
 class CalendarCardWithAvatars extends HTMLElement {
   constructor() {
     super();
@@ -525,8 +593,18 @@ class CalendarCardWithAvatars extends HTMLElement {
     return 6;
   }
 
+  // The dashboard asks for this on every redraw, so a height whose condition
+  // changes applies right away. A height set in the Layout tab wins over this.
   getGridOptions() {
-    return { columns: 12, rows: 6, min_columns: 4, min_rows: 3 };
+    return { columns: 12, rows: this._rows(), min_columns: 4, min_rows: 3 };
+  }
+
+  _rows() {
+    const config = this._config || {};
+    const hass = this._hass;
+    const match = hass ? (config.heights || []).find((h) => heightApplies(h, hass)) : undefined;
+    const rows = Number(match ? match.rows : config.rows) || DEFAULT_ROWS;
+    return Math.max(1, Math.round(rows));
   }
 
   connectedCallback() {
@@ -880,7 +958,39 @@ class CalendarCardWithAvatarsEditor extends HTMLElement {
           },
         ],
       },
+      {
+        type: "expandable",
+        name: "height_section",
+        title: text(hass, "height_section"),
+        icon: "mdi:arrow-expand-vertical",
+        flatten: true,
+        schema: [
+          { name: "rows", selector: { number: { min: 1, max: 24, mode: "box" } } },
+          {
+            name: "heights",
+            selector: {
+              object: {
+                multiple: true,
+                label_field: "entity",
+                description_field: "rows",
+                fields: {
+                  rows: Object.assign(field("height_rows", { number: { min: 1, max: 24, mode: "box" } }), { required: true }),
+                  // Not required: a height can also have conditions (YAML), which the editor keeps.
+                  entity: field("height_entity", { entity: {} }),
+                  state: field("height_state", { text: {} }),
+                  state_not: field("height_state_not", { text: {} }),
+                },
+              },
+            },
+          },
+        ],
+      },
     ];
+  }
+
+  _layoutRows() {
+    const options = this._config.grid_options;
+    return options && typeof options.rows === "number" ? options.rows : undefined;
   }
 
   _data() {
@@ -892,6 +1002,8 @@ class CalendarCardWithAvatarsEditor extends HTMLElement {
       name_pictures: config.name_pictures !== false,
       waste_pictures: config.waste_pictures !== false,
       picture_rules: config.picture_rules || [],
+      rows: config.rows || this._layoutRows() || DEFAULT_ROWS,
+      heights: config.heights || [],
     };
   }
 
@@ -900,6 +1012,8 @@ class CalendarCardWithAvatarsEditor extends HTMLElement {
     if (!this._form) {
       this._form = document.createElement("ha-form");
       this._form.computeLabel = (schema) => text(this._hass, schema.name);
+      this._form.computeHelper = (schema) =>
+        ["rows", "heights"].includes(schema.name) ? text(this._hass, `${schema.name}_helper`) : undefined;
       this._form.addEventListener("value-changed", (ev) => this._changed(ev));
       this.appendChild(this._form);
     }
@@ -923,6 +1037,23 @@ class CalendarCardWithAvatarsEditor extends HTMLElement {
     set("name_pictures", value.name_pictures === false);
     set("waste_pictures", value.waste_pictures === false);
     set("picture_rules", value.picture_rules && value.picture_rules.length);
+    const heights = (value.heights || []).filter(
+      (h) => h && Number(h.rows) > 0 && (h.entity || (Array.isArray(h.conditions) && h.conditions.length))
+    );
+    set("heights", heights.length > 0, heights);
+    const rows = Number(value.rows) || undefined;
+    const layoutRows = this._layoutRows();
+    // A height in the Layout tab always wins. When other heights are used, or the
+    // height is changed here, it moves here as the default height.
+    const takeOver = layoutRows !== undefined && (heights.length > 0 || (rows !== undefined && rows !== layoutRows));
+    if (takeOver) {
+      const options = Object.assign({}, config.grid_options);
+      delete options.rows;
+      if (Object.keys(options).length) config.grid_options = options;
+      else delete config.grid_options;
+    }
+    const layoutDecides = layoutRows !== undefined && !takeOver;
+    set("rows", rows !== undefined && !layoutDecides && (rows !== DEFAULT_ROWS || heights.length > 0), rows);
     this._config = config;
     this.dispatchEvent(new CustomEvent("config-changed", { detail: { config }, bubbles: true, composed: true }));
   }

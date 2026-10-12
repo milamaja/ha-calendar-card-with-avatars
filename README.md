@@ -32,6 +32,12 @@ this week. Everything is set up in the dashboard editor, no YAML needed.
   or a colour you pick in the editor.
 - The size is set in the editor's **Layout** tab, like any card in a sections
   dashboard; a fixed height scrolls, **auto** grows with the events.
+- **Heights that depend on a condition**: one card can be 9 rows high normally
+  and 8 rows while, for example, a warning card above it is shown. Set them
+  under **Height** in the editor: a default height and other heights, each with
+  an entity that has (or does not have) a certain state. The first one whose
+  condition is met is used. No more copies of the card with visibility
+  conditions for each height.
 - Dates and times follow the language, time format and time zone of your
   Home Assistant profile.
 - Its own integration icon (Home Assistant 2026.3 and newer).
@@ -108,6 +114,34 @@ grid_options:
   columns: full
   rows: 8
 ```
+
+Heights that depend on a condition (leave `rows` out of `grid_options`, a
+height in the Layout tab always wins):
+
+```yaml
+type: custom:calendar-card-with-avatars
+calendars:
+  - entity: calendar.family
+grid_options:
+  columns: full
+rows: 9                  # the default height
+heights:                 # the first one that applies is used
+  - rows: 7              # several conditions: all must be met
+    conditions:          # (the format of the card visibility conditions)
+      - condition: state
+        entity: input_boolean.guests
+        state: "on"
+      - condition: state
+        entity: binary_sensor.warning
+        state: "on"
+  - rows: 8              # short form: one entity
+    entity: binary_sensor.warning
+    state: "on"          # or state_not: "off"
+```
+
+Supported conditions: `state` (`state`, `state_not`), `numeric_state`
+(`above`, `below`), `screen` (`media_query`), `user` (`users`), and `and`,
+`or`, `not` around other conditions.
 
 ## How the waste pictures are found
 
