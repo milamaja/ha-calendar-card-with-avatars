@@ -13,7 +13,7 @@
  * Everything is set up in the card editor.
  */
 
-const VERSION = "1.1.0";
+const VERSION = "1.1.5";
 const CARD_TYPE = "calendar-card-with-avatars";
 const EDITOR_TYPE = "calendar-card-with-avatars-editor";
 const DEFAULT_DAYS = 7;
