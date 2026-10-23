@@ -8,6 +8,10 @@ choice.
 Made for family dashboards and wall tablets: see at a glance who has what
 this week. Everything is set up in the dashboard editor, no YAML needed.
 
+<p>
+  <img src="https://raw.githubusercontent.com/milamaja/ha-calendar-card-with-avatars/main/images/card.png" width="420" alt="Calendar card: a week of events, with the person's picture in front of their events and the calendar colour for the others">
+</p>
+
 ## What you get
 
 - A **Calendar Card with Avatars** card in the dashboard card picker: the next
